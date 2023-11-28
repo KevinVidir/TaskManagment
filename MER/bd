@@ -1,0 +1,53 @@
+CREATE TRIGGER tr_fecha_entrega_futura
+BEFORE INSERT ON Tarea
+FOR EACH ROW
+BEGIN
+    IF NEW.FechaEntrega <= CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La fecha de entrega de la tarea debe ser en el futuro.';
+    END IF;
+END;
+
+----------------------------------------------------------
+CREATE TRIGGER tr_evitar_repeticion_tarea
+BEFORE INSERT ON realiza
+FOR EACH ROW
+BEGIN
+    DECLARE numero_ocurrencias INT;
+
+   
+    SELECT COUNT(*) INTO numero_ocurrencias
+    FROM realiza
+    WHERE IDUsuario = NEW.IDUsuario AND IDGrupo = NEW.IDGrupo AND IDTarea = NEW.IDTarea;
+
+    IF nummero_ocurrencias > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Un usuario no puede realizar la misma tarea más de una vez en el mismo grupo.';
+    END IF;
+END;
+--------------------------------------------------------------
+CREATE TRIGGER actualizar_fecha_entrega_de_tarea
+AFTER UPDATE ON Tarea
+FOR EACH ROW
+BEGIN
+    UPDATE realiza
+    SET FechaEntrega = NEW.FechaEntrega
+    WHERE IDTarea = NEW.IDTarea;
+END;
+--------------------------------------------------------------
+CREATE TRIGGER tarea_limite_fecha_entrega
+BEFORE INSERT ON Tarea
+FOR EACH ROW
+BEGIN
+    DECLARE limite_dias INT;
+    DECLARE fecha_limite DATE;
+
+    SET limite_dias = 21;
+
+    SET fecha_limite = DATE_ADD(CURDATE(), INTERVAL limite_dias DAY);
+
+    IF NEW.FechaEntrega > fecha_limite THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La fecha de entrega de la tarea no puede ser posterior a ' || limite_dias || ' días en el futuro.';
+    END IF;
+END;
